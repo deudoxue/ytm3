@@ -1,0 +1,21 @@
+{
+  "name": "ytmp3",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Responsive YouTube to MP3 downloader",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "setup": "node scripts/setup-binaries.js",
+    "update:ytdlp": "node scripts/setup-binaries.js --force",
+    "postinstall": "node scripts/setup-binaries.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "ffmpeg-static": "^5.2.0"
+  }
+}

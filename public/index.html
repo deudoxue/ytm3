@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0a0b0f">
+    <meta name="description" content="Ubah video YouTube menjadi MP3 dengan cepat. Cari lagu atau tempel tautan, lalu simpan MP3 langsung dari browser di HP, tablet, dan laptop.">
+    <title>ytmp3 — Unduh musik dari YouTube</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Lewati ke konten utama</a>
+
+    <header class="site-header">
+      <div class="wrap site-header__inner">
+        <a class="brand" href="/" aria-label="ytmp3 — kembali ke awal">
+          <span class="brand__mark" aria-hidden="true">
+            <span class="brand__bars"><i></i><i></i><i></i><i></i></span>
+          </span>
+          <span class="brand__name">yt<span>mp3</span></span>
+        </a>
+        <div class="site-header__right">
+          <span class="pill"><span class="pill__dot" aria-hidden="true"></span>MP3 · HQ</span>
+          <a class="nav-link" href="#cara-pakai">Cara pakai</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="wrap hero">
+        <div class="hero__copy">
+          <p class="eyebrow"><span class="eyebrow__dot" aria-hidden="true"></span>YouTube ke MP3</p>
+          <h1>Lagu favoritnya,<br><em>langsung jadi MP3.</em></h1>
+          <p class="lede">
+            Tempel tautan YouTube atau cari judul lagu. Audio dikonversi jadi MP3 kualitas tinggi
+            dan siap disimpan — tanpa aplikasi, di HP maupun laptop.
+          </p>
+
+          <form class="search" id="search-form" novalidate>
+            <label class="sr-only" for="query">Tautan YouTube atau judul lagu</label>
+            <div class="search__field">
+              <svg class="search__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M10.5 13.5a4.5 4.5 0 0 0 6.36 0l2.5-2.5a4.5 4.5 0 1 0-6.36-6.36l-1.1 1.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                <path d="M13.5 10.5a4.5 4.5 0 0 0-6.36 0l-2.5 2.5a4.5 4.5 0 1 0 6.36 6.36l1.1-1.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+              <input
+                id="query"
+                name="query"
+                type="search"
+                placeholder="Tautan atau judul lagu…"
+                autocomplete="off"
+                autocapitalize="off"
+                autocorrect="off"
+                spellcheck="false"
+                enterkeyhint="search"
+                maxlength="300"
+                required
+              >
+              <button class="btn btn--primary search__btn" id="search-btn" type="submit">
+                <span class="btn__label" id="search-label">Cari</span>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </form>
+
+          <div class="chips" role="group" aria-label="Contoh pencarian">
+            <span class="chips__label">Coba</span>
+            <button class="chip" type="button" data-query="lofi chill">lofi chill</button>
+            <button class="chip" type="button" data-query="dangdut koplo">dangdut koplo</button>
+            <button class="chip" type="button" data-query="lagu nostalgia 2000an">nostalgia 2000an</button>
+          </div>
+
+          <p class="form-note" id="form-note" role="status">Tempel tautan video, Shorts, atau tautan youtu.be.</p>
+        </div>
+
+        <div class="hero__art" aria-hidden="true">
+          <div class="disc">
+            <div class="disc__label">
+              <span>MP3</span>
+              <small>HQ AUDIO</small>
+            </div>
+          </div>
+          <div class="float float--a">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M4 14v-2a8 8 0 0 1 16 0v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M4 14a2 2 0 0 1 2-2h1v6H6a2 2 0 0 1-2-2v-2Zm16 0a2 2 0 0 0-2-2h-1v6h1a2 2 0 0 0 2-2v-2Z" fill="currentColor"/>
+            </svg>
+            <span>Audio siap</span>
+          </div>
+          <div class="float float--b">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="4" width="18" height="13" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M8 21h8m-4-4v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span>Semua perangkat</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap section" id="results" aria-labelledby="results-title" hidden>
+        <div class="section__head">
+          <div>
+            <h2 id="results-title">Hasil</h2>
+            <p class="section__sub" id="results-sub" aria-live="polite"></p>
+          </div>
+          <button class="btn btn--ghost" id="results-close" type="button">Tutup</button>
+        </div>
+        <div id="results-body"></div>
+      </section>
+
+      <section class="wrap section" id="downloads" aria-labelledby="downloads-title" hidden>
+        <div class="section__head">
+          <div>
+            <h2 id="downloads-title">Antrean unduhan</h2>
+            <p class="section__sub"><span id="job-count">0</span> lagu · file tersedia sementara di server</p>
+          </div>
+        </div>
+        <ul class="jobs" id="job-list"></ul>
+      </section>
+
+      <section class="wrap steps" id="cara-pakai" aria-labelledby="steps-title">
+        <div class="section__head section__head--steps">
+          <div>
+            <p class="eyebrow"><span class="eyebrow__dot" aria-hidden="true"></span>Tiga langkah</p>
+            <h2 id="steps-title">Dari YouTube ke MP3, tanpa ribet.</h2>
+          </div>
+        </div>
+        <div class="steps__grid">
+          <article class="step">
+            <p class="step__num">01</p>
+            <h3>Tempel tautan</h3>
+            <p>Salin URL video dari aplikasi atau situs YouTube, lalu tempel di kolom pencarian. Bisa juga langsung cari judul lagu.</p>
+          </article>
+          <article class="step">
+            <p class="step__num">02</p>
+            <h3>Pilih lagu</h3>
+            <p>Untuk pencarian, pilih hasil yang tepat. Untuk tautan, detail video langsung tampil beserta tombol unduh MP3.</p>
+          </article>
+          <article class="step">
+            <p class="step__num">03</p>
+            <h3>Simpan MP3</h3>
+            <p>Tunggu proses unduh dan konversi selesai, lalu ketuk <strong>Simpan MP3</strong>. File masuk ke folder unduhan perangkatmu.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap site-footer__inner">
+        <p class="site-footer__brand">ytmp3 © <span id="year">2026</span></p>
+        <p class="site-footer__note">
+          Gunakan hanya untuk konten yang kamu berhak unduh. ytmp3 tidak berafiliasi dengan YouTube.
+        </p>
+      </div>
+    </footer>
+
+    <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+    <noscript>
+      <p class="noscript">Aktifkan JavaScript untuk mencari lagu dan mengunduh MP3.</p>
+    </noscript>
+
+    <template id="tpl-track">
+      <article class="track">
+        <div class="track__media">
+          <img class="track__img" alt="" width="480" height="270" loading="lazy" decoding="async">
+          <span class="track__duration"></span>
+        </div>
+        <div class="track__info">
+          <h3 class="track__title"></h3>
+          <p class="track__channel"></p>
+        </div>
+        <button class="btn btn--track" type="button" aria-label="Unduh MP3">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 3v11m0 0 4.2-4.2M12 14l-4.2-4.2M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Unduh MP3</span>
+        </button>
+      </article>
+    </template>
+
+    <template id="tpl-job">
+      <li class="job">
+        <img class="job__thumb" alt="" width="96" height="96" loading="lazy" decoding="async">
+        <div class="job__body">
+          <div class="job__top">
+            <div class="job__titles">
+              <p class="job__title"></p>
+              <p class="job__meta"></p>
+            </div>
+            <span class="job__pct"></span>
+          </div>
+          <div class="progress" role="progressbar" aria-label="Progres unduhan" aria-valuemin="0" aria-valuemax="100">
+            <span class="progress__bar"></span>
+          </div>
+          <div class="job__bottom">
+            <p class="job__status"></p>
+            <div class="job__actions">
+              <a class="btn btn--save job__save" download hidden>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 3v11m0 0 4.2-4.2M12 14l-4.2-4.2M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Simpan MP3
+              </a>
+              <button class="btn btn--ghost job__retry" type="button" hidden>Ulangi</button>
+              <button class="btn btn--ghost job__remove" type="button">Batal</button>
+            </div>
+          </div>
+        </div>
+      </li>
+    </template>
+  </body>
+</html>
