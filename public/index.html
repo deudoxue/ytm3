@@ -34,8 +34,8 @@
           <p class="eyebrow"><span class="eyebrow__dot" aria-hidden="true"></span>YouTube ke MP3</p>
           <h1>Lagu favoritnya,<br><em>langsung jadi MP3.</em></h1>
           <p class="lede">
-            Tempel tautan YouTube atau cari judul lagu. Audio dikonversi jadi MP3 kualitas tinggi
-            dan siap disimpan — tanpa aplikasi, di HP maupun laptop.
+            Tempel tautan YouTube atau cari judul lagu. Putar pratinjau 30 detik,
+            lalu simpan sebagai MP3 kualitas tinggi — tanpa aplikasi, di HP maupun laptop.
           </p>
 
           <form class="search" id="search-form" novalidate>
@@ -138,7 +138,7 @@
           <article class="step">
             <p class="step__num">02</p>
             <h3>Pilih lagu</h3>
-            <p>Untuk pencarian, pilih hasil yang tepat. Untuk tautan, detail video langsung tampil beserta tombol unduh MP3.</p>
+            <p>Untuk pencarian, pilih hasil yang tepat. Tekan tombol putar untuk mendengarkan pratinjau 30 detik sebelum mengunduh.</p>
           </article>
           <article class="step">
             <p class="step__num">03</p>
@@ -158,6 +158,38 @@
       </div>
     </footer>
 
+    <div class="preview-player" id="preview-player" role="region" aria-label="Pratinjau audio" hidden>
+      <img class="preview-player__thumb" id="preview-thumb" alt="" width="52" height="52" decoding="async">
+      <div class="preview-player__main">
+        <div class="preview-player__top">
+          <div class="preview-player__titles">
+            <p class="preview-player__title" id="preview-title"></p>
+            <p class="preview-player__meta" id="preview-meta"></p>
+          </div>
+          <button class="preview-player__close" id="preview-close" type="button" aria-label="Tutup pemutar">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="preview-player__controls">
+          <button class="preview-player__toggle" id="preview-toggle" type="button" aria-label="Putar pratinjau">
+            <svg class="preview-player__icon preview-player__icon--play" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5.3v13.4L19 12 8 5.3Z" fill="currentColor"/>
+            </svg>
+            <svg class="preview-player__icon preview-player__icon--pause" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5h3.2v14H8V5Zm4.8 0H16v14h-3.2V5Z" fill="currentColor"/>
+            </svg>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+          <span class="preview-player__time" id="preview-current">0:00</span>
+          <input class="preview-player__seek" id="preview-seek" type="range" min="0" max="30" step="0.1" value="0" aria-label="Posisi pratinjau" disabled>
+          <span class="preview-player__time" id="preview-duration">0:30</span>
+        </div>
+      </div>
+      <audio id="preview-audio" preload="metadata" playsinline></audio>
+    </div>
+
     <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
 
     <noscript>
@@ -168,6 +200,15 @@
       <article class="track">
         <div class="track__media">
           <img class="track__img" alt="" width="480" height="270" loading="lazy" decoding="async">
+          <button class="track__play" type="button" aria-label="Putar pratinjau">
+            <svg class="track__icon track__icon--play" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5.3v13.4L19 12 8 5.3Z" fill="currentColor"/>
+            </svg>
+            <svg class="track__icon track__icon--pause" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5h3.2v14H8V5Zm4.8 0H16v14h-3.2V5Z" fill="currentColor"/>
+            </svg>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
           <span class="track__duration"></span>
         </div>
         <div class="track__info">

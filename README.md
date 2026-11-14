@@ -6,7 +6,8 @@ Website responsif untuk mengubah video YouTube menjadi MP3. Tempel tautan atau c
 
 ## Fitur
 
-- Pencarian judul lagu (8 hasil) atau tempel tautan YouTube, Shorts, `youtu.be`, dan `music.youtube.com`.
+- Pencarian judul lagu (hingga 10 hasil) atau tempel tautan YouTube, Shorts, `youtu.be`, dan `music.youtube.com`.
+- Pratinjau audio 30 detik langsung di kartu hasil sebelum mengunduh, dengan pemutar mini yang bisa di-seek.
 - Konversi audio ke MP3 dengan metadata dan cover art tertanam.
 - Antrean unduhan dengan progres, pembatalan, dan tombol ulangi.
 - Riwayat antrean di `localStorage`, jadi halaman bisa dimuat ulang tanpa kehilangan status.
@@ -75,13 +76,14 @@ Cookies hanya diperlukan bila YouTube membatasi IP server. Perlakukan file ini s
 
 ## Cara kerja
 
-1. `POST /api/resolve` menjalankan `yt-dlp` untuk mengambil metadata atau hasil pencarian (`ytsearch8:`).
+1. `POST /api/resolve` menjalankan `yt-dlp` untuk mengambil metadata atau hasil pencarian (`ytsearch20`; hasil yang lolos filter durasi ditampilkan maksimal 10).
 2. `POST /api/download` memasukkan video ke antrean in-memory. Maksimal `MAX_CONCURRENT` proses berjalan bersamaan.
 3. Setiap proses menjalankan `yt-dlp -f bestaudio -x --audio-format mp3`, memakai ffmpeg untuk konversi, metadata, dan cover.
-4. Klien mempolling `GET /api/jobs/:id` setiap ±1 detik; progres diambil dari `--progress-template` milik yt-dlp.
-5. File jadi disajikan lewat `GET /api/jobs/:id/file` dengan nama file dari judul video.
+4. `GET /api/previews/:videoId` membuat klip MP3 30 detik via `--download-sections`, menyimpannya di cache sementara, lalu menyajikannya dengan dukungan HTTP Range agar bisa di-seek.
+5. Klien mempolling `GET /api/jobs/:id` setiap ±1 detik; progres diambil dari `--progress-template` milik yt-dlp.
+6. File jadi disajikan lewat `GET /api/jobs/:id/file` dengan nama file dari judul video.
 
-File dan job disimpan di memori + `tmp/`. Setelah server restart atau TTL habis, file dihapus dan antrean lama tidak bisa diunduh lagi.
+File dan job disimpan di memori + `tmp/`. Setelah server restart atau TTL habis, file dihapus dan antrean lama tidak bisa diunduh lagi. Cache pratinjau (30 menit) ikut dibersihkan.
 
 ## Endpoint API
 
@@ -90,11 +92,12 @@ File dan job disimpan di memori + `tmp/`. Setelah server restart atau TTL habis,
 | `GET` | `/api/health` | Status yt-dlp, ffmpeg, dan antrean. |
 | `POST` | `/api/resolve` | `{ "input": "url atau judul" }` → `{ kind: "video" \| "search", ... }`. |
 | `POST` | `/api/download` | `{ videoId, title, channel, duration }` → job (HTTP 202). |
+| `GET` | `/api/previews/:videoId` | Klip MP3 30 detik (cached, mendukung Range). |
 | `GET` | `/api/jobs/:id` | Status job. |
 | `GET` | `/api/jobs/:id/file` | File MP3 (`attachment`). Hanya saat status `ready`. |
 | `DELETE` | `/api/jobs/:id` | Batalkan job / hapus file. |
 
-Batasan: playlist belum didukung, video live/premiere ditolak, dan video di atas `MAX_DURATION_SECONDS` ditolak. Rate limit: 20 resolve/menit dan 8 unduhan baru/menit per IP.
+Batasan: playlist belum didukung, video live/premiere ditolak, dan video di atas `MAX_DURATION_SECONDS` ditolak. Rate limit: 20 resolve/menit, 8 unduhan baru/menit, dan 120 permintaan pratinjau/menit per IP.
 
 ## Struktur
 
@@ -102,6 +105,7 @@ Batasan: playlist belum didukung, video live/premiere ditolak, dan video di atas
 server.js               Express, keamanan header, rate limit, routing API
 src/ytdlp.js            Lokasi binary, parsing URL, metadata, pencarian, pesan error
 src/jobs.js             Antrean, proses yt-dlp/ffmpeg, progres, TTL, pembatalan
+src/previews.js         Cache klip pratinjau 30 detik + streaming Range
 scripts/setup-binaries.js  Unduh binary yt-dlp sesuai platform
 public/                 index.html, styles.css, app.js, ikon
 tmp/                    File kerja (gitignored)
@@ -119,6 +123,8 @@ Karena tidak ada autentikasi bawaan, jangan ekspos langsung ke internet publik t
 
 ## Troubleshooting
 
+- **Hasil pencarian sedikit** — server mencari 20 hasil lalu membuang live stream dan video di atas `MAX_DURATION_SECONDS` (default 3 jam), dengan maksimal 10 hasil ditampilkan. Naikkan batas durasi bila perlu.
+- **Pratinjau lambat diputar** — klip 30 detik dibuat saat pemutaran pertama (bisa beberapa detik), lalu di-cache sehingga pemutaran berikutnya instan.
 - **“YouTube meminta verifikasi bot”** — ekspor cookies dan jalankan dengan `YTDLP_COOKIES=./cookies.txt npm start`. Jangan commit file cookies.
 - **“ffmpeg tidak tersedia”** — jalankan `node node_modules/ffmpeg-static/install.js`, pasang ffmpeg sistem lalu set `FFMPEG_PATH`, atau gunakan distro berbasis glibc (Alpine/musl butuh ffmpeg sistem).
 - **Unduhan gagal karena 403/DNS/timeout** — server otomatis mencoba ulang sekali. Jika sering terjadi, perbarui yt-dlp dengan `npm run update:ytdlp` dan cek koneksi/DNS server.

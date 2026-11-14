@@ -18,6 +18,18 @@ const elements = {
   jobCount: $('#job-count'),
   toasts: $('#toasts'),
   year: $('#year'),
+  preview: {
+    root: $('#preview-player'),
+    audio: $('#preview-audio'),
+    thumb: $('#preview-thumb'),
+    title: $('#preview-title'),
+    meta: $('#preview-meta'),
+    toggle: $('#preview-toggle'),
+    current: $('#preview-current'),
+    duration: $('#preview-duration'),
+    seek: $('#preview-seek'),
+    close: $('#preview-close'),
+  },
 };
 
 const templates = {
@@ -36,6 +48,13 @@ const state = {
   jobRefs: new Map(),
   pollTimer: null,
   polling: false,
+};
+
+const previewState = {
+  video: null,
+  card: null,
+  loading: false,
+  scrubbing: false,
 };
 
 function prefersReducedMotion() {
@@ -70,6 +89,12 @@ function formatBytes(bytes) {
   if (!Number.isFinite(bytes) || bytes <= 0) return '';
   const megabytes = bytes / (1024 * 1024);
   return megabytes >= 10 ? `${Math.round(megabytes)} MB` : `${megabytes.toFixed(1)} MB`;
+}
+
+function formatClock(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const total = Math.floor(seconds);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
 async function api(path, options = {}) {
@@ -137,6 +162,231 @@ function toast(message, type = 'info') {
   }, 4200);
 }
 
+function previewCardButton(card) {
+  return card ? card.querySelector('.track__play') : null;
+}
+
+function setPreviewCardState() {
+  const button = previewCardButton(previewState.card);
+  if (!button) return;
+
+  const audio = elements.preview.audio;
+  const playing =
+    Boolean(previewState.video) && !audio.paused && !audio.ended && !previewState.loading;
+  const title = previewState.video?.title || 'lagu ini';
+
+  previewState.card.classList.toggle('is-playing', playing);
+  previewState.card.classList.toggle('is-loading', previewState.loading);
+  button.setAttribute(
+    'aria-label',
+    previewState.loading
+      ? `Memuat pratinjau: ${title}`
+      : playing
+        ? `Jeda pratinjau: ${title}`
+        : `Putar pratinjau: ${title}`
+  );
+
+  if (previewState.loading) button.setAttribute('aria-busy', 'true');
+  else button.removeAttribute('aria-busy');
+}
+
+function syncPreviewUi() {
+  const audio = elements.preview.audio;
+  const playing =
+    Boolean(previewState.video) && !audio.paused && !audio.ended && !previewState.loading;
+
+  elements.preview.root.classList.toggle('is-playing', playing);
+  elements.preview.root.classList.toggle('is-loading', previewState.loading);
+  elements.preview.toggle.setAttribute(
+    'aria-label',
+    previewState.loading ? 'Memuat pratinjau' : playing ? 'Jeda pratinjau' : 'Putar pratinjau'
+  );
+
+  if (previewState.loading) elements.preview.toggle.setAttribute('aria-busy', 'true');
+  else elements.preview.toggle.removeAttribute('aria-busy');
+
+  setPreviewCardState();
+}
+
+function updatePreviewProgress() {
+  const audio = elements.preview.audio;
+  const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
+  const current = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+  const shown = previewState.scrubbing
+    ? Number(elements.preview.seek.value) || 0
+    : current;
+
+  if (!previewState.scrubbing) {
+    elements.preview.seek.max = String(duration);
+    elements.preview.seek.value = String(Math.min(current, duration));
+  }
+
+  const percent = duration > 0 ? Math.min(100, (shown / duration) * 100) : 0;
+  elements.preview.seek.style.setProperty('--seek', `${percent}%`);
+  elements.preview.current.textContent = formatClock(shown);
+  elements.preview.duration.textContent = formatClock(duration);
+}
+
+function showPreviewUi(video) {
+  elements.preview.root.hidden = false;
+  document.body.classList.add('has-preview');
+
+  elements.preview.thumb.hidden = false;
+  elements.preview.thumb.src = video.thumbnail;
+  elements.preview.title.textContent = video.title || 'Tanpa judul';
+  elements.preview.meta.textContent = [video.channel, 'Pratinjau 30 detik']
+    .filter(Boolean)
+    .join(' · ');
+  elements.preview.seek.max = '30';
+  elements.preview.seek.value = '0';
+  elements.preview.seek.disabled = true;
+  elements.preview.seek.style.setProperty('--seek', '0%');
+  elements.preview.current.textContent = '0:00';
+  elements.preview.duration.textContent = '0:30';
+}
+
+function stopPreview() {
+  const audio = elements.preview.audio;
+
+  if (previewState.card) {
+    previewState.card.classList.remove('is-playing', 'is-loading');
+    const button = previewCardButton(previewState.card);
+    if (button) {
+      button.setAttribute('aria-label', 'Putar pratinjau');
+      button.removeAttribute('aria-busy');
+    }
+  }
+
+  previewState.video = null;
+  previewState.card = null;
+  previewState.loading = false;
+  previewState.scrubbing = false;
+
+  audio.pause();
+  audio.removeAttribute('src');
+  audio.load();
+
+  elements.preview.root.hidden = true;
+  elements.preview.root.classList.remove('is-playing', 'is-loading');
+  elements.preview.toggle.removeAttribute('aria-busy');
+  elements.preview.seek.disabled = true;
+  elements.preview.seek.value = '0';
+  elements.preview.seek.style.setProperty('--seek', '0%');
+  elements.preview.current.textContent = '0:00';
+  elements.preview.duration.textContent = '0:30';
+  document.body.classList.remove('has-preview');
+}
+
+function startPreview(video, card) {
+  if (!video?.videoId) return;
+
+  const audio = elements.preview.audio;
+
+  if (previewState.video?.videoId === video.videoId) {
+    if (previewState.loading) return;
+    if (audio.paused || audio.ended) {
+      if (audio.ended) audio.currentTime = 0;
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+    }
+    return;
+  }
+
+  stopPreview();
+
+  previewState.video = video;
+  previewState.card = card;
+  previewState.loading = true;
+
+  showPreviewUi(video);
+  syncPreviewUi();
+
+  audio.src = `/api/previews/${video.videoId}`;
+  audio.load();
+
+  const attempt = audio.play();
+  if (attempt?.catch) attempt.catch(() => {});
+}
+
+function bindPreviewEvents() {
+  const audio = elements.preview.audio;
+
+  const clearLoading = () => {
+    if (!previewState.video) return;
+    previewState.loading = false;
+    elements.preview.seek.disabled = false;
+    updatePreviewProgress();
+    syncPreviewUi();
+  };
+
+  audio.addEventListener('play', clearLoading);
+  audio.addEventListener('canplay', clearLoading);
+  audio.addEventListener('loadedmetadata', () => {
+    if (!previewState.video) return;
+    elements.preview.seek.disabled = false;
+    updatePreviewProgress();
+  });
+  audio.addEventListener('pause', () => {
+    if (!previewState.video) return;
+    syncPreviewUi();
+  });
+  audio.addEventListener('timeupdate', () => {
+    if (!previewState.video) return;
+    updatePreviewProgress();
+  });
+  audio.addEventListener('durationchange', () => {
+    if (!previewState.video) return;
+    updatePreviewProgress();
+  });
+  audio.addEventListener('ended', () => {
+    if (!previewState.video) return;
+    audio.currentTime = 0;
+    previewState.loading = false;
+    updatePreviewProgress();
+    syncPreviewUi();
+  });
+  audio.addEventListener('error', () => {
+    if (!previewState.video) return;
+    stopPreview();
+    toast('Pratinjau tidak bisa diputar. Coba lagi.', 'error');
+  });
+
+  elements.preview.toggle.addEventListener('click', () => {
+    if (!previewState.video || previewState.loading) return;
+    if (audio.paused || audio.ended) {
+      if (audio.ended) audio.currentTime = 0;
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+    }
+  });
+
+  elements.preview.close.addEventListener('click', stopPreview);
+
+  elements.preview.seek.addEventListener('pointerdown', () => {
+    previewState.scrubbing = true;
+  });
+
+  elements.preview.seek.addEventListener('input', () => {
+    previewState.scrubbing = true;
+    const value = Number(elements.preview.seek.value);
+    if (Number.isFinite(value) && audio.readyState > 0) {
+      audio.currentTime = Math.min(value, audio.duration || value);
+    }
+    updatePreviewProgress();
+  });
+
+  elements.preview.seek.addEventListener('change', () => {
+    previewState.scrubbing = false;
+    updatePreviewProgress();
+  });
+
+  elements.preview.thumb.addEventListener('error', () => {
+    elements.preview.thumb.hidden = true;
+  });
+}
+
 function renderSkeletons() {
   elements.resultsBody.className = 'tracks';
   const fragment = document.createDocumentFragment();
@@ -184,6 +434,7 @@ function renderEmpty({ title, text, retry = false }) {
 function buildTrack(video, { featured = false } = {}) {
   const node = templates.track.content.firstElementChild.cloneNode(true);
   if (featured) node.classList.add('track--featured');
+  node.dataset.videoId = video.videoId;
 
   const image = $('.track__img', node);
   image.src = video.thumbnail;
@@ -198,6 +449,10 @@ function buildTrack(video, { featured = false } = {}) {
   $('.track__duration', node).textContent = formatDuration(video.duration);
   $('.track__title', node).textContent = video.title || 'Tanpa judul';
   $('.track__channel', node).textContent = video.channel || 'YouTube';
+
+  const playButton = $('.track__play', node);
+  playButton.setAttribute('aria-label', `Putar pratinjau: ${video.title || 'lagu'}`);
+  playButton.addEventListener('click', () => startPreview(video, node));
 
   const button = $('.btn--track', node);
   button.setAttribute('aria-label', `Unduh MP3: ${video.title || 'video'}`);
@@ -577,6 +832,8 @@ elements.form.addEventListener('submit', async (event) => {
   }
   if (state.busy) return;
 
+  stopPreview();
+
   state.busy = true;
   elements.searchBtn.disabled = true;
   setNote('Menghubungi YouTube…');
@@ -624,5 +881,6 @@ if (elements.year) {
   elements.year.textContent = String(new Date().getFullYear());
 }
 
+bindPreviewEvents();
 updateSearchMode();
 hydrateJobs();

@@ -4,6 +4,7 @@ import { mkdir, readdir, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { JobStore } from './src/jobs.js';
+import { PreviewCache } from './src/previews.js';
 import {
   MAX_INPUT_LENGTH,
   UserError,
@@ -30,6 +31,8 @@ await Promise.all(
 
 const app = express();
 const store = new JobStore({ dir: TMP_DIR });
+const previews = new PreviewCache({ dir: path.join(TMP_DIR, 'previews') });
+await previews.init();
 let activeResolves = 0;
 
 app.disable('x-powered-by');
@@ -90,6 +93,7 @@ function makeLimiter({ max, windowMs }) {
 
 const resolveLimiter = makeLimiter({ max: 20, windowMs: 60_000 });
 const downloadLimiter = makeLimiter({ max: 8, windowMs: 60_000 });
+const previewLimiter = makeLimiter({ max: 120, windowMs: 60_000 });
 
 app.use(
   express.static(path.join(ROOT, 'public'), {
@@ -107,6 +111,8 @@ app.get('/api/health', (req, res) => {
     ffmpeg: Boolean(getFfmpegPath()),
     activeJobs: store.active,
     queuedJobs: store.queue.length,
+    activePreviews: previews.active,
+    cachedPreviews: previews.entries.size,
   });
 });
 
@@ -183,6 +189,21 @@ app.get('/api/jobs/:id/file', (req, res, next) => {
   });
 });
 
+app.get('/api/previews/:videoId', previewLimiter, async (req, res, next) => {
+  const filePath = await previews.get(req.params.videoId);
+  if (res.destroyed) return;
+
+  res.setHeader('Cache-Control', 'private, max-age=1800');
+  res.sendFile(filePath, (error) => {
+    if (!error) return;
+    if (res.headersSent) {
+      if (!res.writableEnded) res.end();
+      return;
+    }
+    next(error);
+  });
+});
+
 app.delete('/api/jobs/:id', (req, res) => {
   store.delete(req.params.id);
   res.status(204).end();
@@ -221,6 +242,7 @@ const server = app.listen(PORT, HOST, () => {
 
 function shutdown() {
   store.shutdown();
+  previews.shutdown();
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 3000).unref();
 }

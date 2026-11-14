@@ -13,6 +13,8 @@ export const MAX_DURATION_SECONDS =
   Number(process.env.MAX_DURATION_SECONDS) > 0
     ? Number(process.env.MAX_DURATION_SECONDS)
     : 3 * 60 * 60;
+const SEARCH_DEPTH = 20;
+const SEARCH_RESULTS = 10;
 
 export class UserError extends Error {
   constructor(message, statusCode = 422) {
@@ -348,7 +350,7 @@ export async function searchVideos(query) {
       '--socket-timeout',
       '15',
       ...cookiesArgs(),
-      `ytsearch8:${query}`,
+      `ytsearch${SEARCH_DEPTH}:${query}`,
     ],
     { timeoutMs: 45_000 }
   );
@@ -375,5 +377,6 @@ export async function searchVideos(query) {
       thumbnail: `https://i.ytimg.com/vi/${entry.id}/hqdefault.jpg`,
       url: `https://www.youtube.com/watch?v=${entry.id}`,
     }))
-    .filter((video) => !(video.duration && video.duration > MAX_DURATION_SECONDS));
+    .filter((video) => !(video.duration && video.duration > MAX_DURATION_SECONDS))
+    .slice(0, SEARCH_RESULTS);
 }
